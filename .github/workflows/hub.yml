@@ -138,7 +138,7 @@ jobs:
           msg=$(git diff --cached --name-only |
             sed -n 's|^Formula/\(.*\)\.rb$|\1|p' |
             while read -r name; do
-              printf '%s %s, ' "$name" "$(sed -n 's/^  version "\(.*\)"$/\1/p' "Formula/$name.rb")"
+              printf '%s %s, ' "$name" "$(sed -n 's/^# Generated .* from the v\(.*\) release.*$/\1/p' "Formula/$name.rb")"
             done | sed 's/, $//')
           git commit --quiet --message "$msg"
           git push --quiet

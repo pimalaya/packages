@@ -96,7 +96,6 @@ for cli in $(clis_for homebrew); do
     echo "class $class < Formula"
     echo "  desc \"$(cli_field "$cli" description)\""
     echo "  homepage \"https://github.com/$repo\""
-    echo "  version \"${tag#v}\""
     echo "  license $license"
     for os in macos linux; do
       echo
