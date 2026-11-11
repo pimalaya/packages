@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pimalaya packages</title>
+<meta name="description" content="Signed APT and DNF repositories and a Homebrew tap for the Pimalaya command-line tools">
+<style>
+:root { color-scheme: light dark; --fg: #1c1c1e; --bg: #ffffff; --muted: #5f6368; --code: #f2f2f4; --link: #0a58ca; }
+@media (prefers-color-scheme: dark) { :root { --fg: #e6e6e8; --bg: #141416; --muted: #a0a0a8; --code: #222226; --link: #8ab4f8; } }
+body { margin: 0 auto; max-width: 46rem; padding: 2rem 16px 3rem; font: 16px/1.6 system-ui, -apple-system, sans-serif; color: var(--fg); background: var(--bg); }
+h1 { font-size: 1.8rem; margin-bottom: .25rem; }
+h2 { font-size: 1.2rem; margin-top: 2rem; }
+pre { overflow-x: auto; padding: .75rem 1rem; background: var(--code); border-radius: 6px; font-size: .875rem; line-height: 1.5; }
+code { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+p code, li code { background: var(--code); padding: .1em .3em; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--link); }
+.muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<h1>Pimalaya packages</h1>
+<p class="muted">Signed APT and DNF repositories and a Homebrew tap for the <a href="https://pimalaya.org/">Pimalaya</a> command-line tools.</p>
+<p>Each package holds the static binary of a GitHub release, with its man pages and shell completions, so one repository serves every Debian, Ubuntu, Fedora and RHEL version.</p>
+
+<h2>Tools</h2>
+<ul>
+@CLIS@
+</ul>
+
+<h2>Debian, Ubuntu</h2>
+<pre><code>@APT@</code></pre>
+<p>Then install a tool, for example <code>sudo apt install ortie</code>.</p>
+
+<h2>Fedora, RHEL, Rocky Linux, AlmaLinux</h2>
+<pre><code>@DNF@</code></pre>
+<p>Then install a tool, for example <code>sudo dnf install ortie</code>.</p>
+
+<h2>Homebrew, on macOS and Linux</h2>
+<pre><code>@BREW@</code></pre>
+
+<h2>Signing key</h2>
+<p>Packages and indexes are signed with <a href="pimalaya.asc">pimalaya.asc</a>, fingerprint <code>@FINGERPRINT@</code>.</p>
+
+<p class="muted">Built from the releases by <a href="https://github.com/pimalaya/packages">pimalaya/packages</a>.</p>
+</body>
+</html>

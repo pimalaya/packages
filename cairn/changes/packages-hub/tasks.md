@@ -1,0 +1,17 @@
+---
+cairn: tasks
+change: packages-hub
+---
+
+- [x] Scaffold: flake.nix with the tools, catalogue.toml (ortie, himalaya), README (what the hub is, the key fingerprint, the secrets), cairn spec/ and log/
+- [x] Package script: download a release's Linux archives, fetch the tag's LICENSE files, map the archive to package paths (unknown entries fail), build the .deb and .rpm with nfpm for each architecture
+- [x] APT repository: pool, Packages indexes, Release signed as InRelease and Release.gpg
+- [x] DNF repository: rpm signatures, createrepo_c, repomd.xml.asc, pimalaya.repo
+- [x] State: reuse the packages the live site already serves, build only new releases, keep the 3 latest per CLI
+- [x] Site: install page (APT with a deb822 source and Signed-By, DNF with pimalaya.repo, Homebrew, fingerprint), the public key exported from the signing key
+- [x] Install tests against the locally served site in debian:stable, ubuntu:latest, fedora:latest and rockylinux:9 containers (Ubuntu images exclude /usr/share/doc, so the file check runs on Debian only); passed locally on 2026-11-11 with a throwaway key
+- [ ] Pages deploy after the tests pass
+- [ ] Homebrew: generate Formula/ortie.rb from the release archives and their SHA-256 (done), install, test and audit it from a local tap on macos-15, macos-15-intel and ubuntu, push to pimalaya/homebrew-tap with TAP_DEPLOY_KEY; tap README (done)
+- [ ] Workflow: workflow_dispatch with a dry-run input, daily schedule, one run at a time, channels independent; a green dry run on GitHub
+- [ ] First real run by hand against ortie 2.3.0 and himalaya 2.2.1, after the maintainer's go; check the install page commands on a real Debian and Fedora machine
+- [ ] Land: fold the delta into spec/hub.md, spec/linux-repository.md and spec/homebrew-tap.md, write the log entry

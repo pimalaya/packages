@@ -1,0 +1,281 @@
+#!/usr/bin/env bash
+# Build the APT and DNF repositories and the site of pkg.pimalaya.org into
+# OUT, from the GitHub releases of the CLIs the catalogue ships to apt or dnf.
+#
+# Usage: linux-build OUT
+#
+# GPG_PRIVATE_KEY holds the armored signing key, which must be the key of
+# pimalaya.asc unless HUB_TEST_KEY=1. Unless FORCE=true, nothing is built when
+# the live site's manifest matches this run's. Writes changed=true or
+# changed=false to $GITHUB_OUTPUT when set.
+
+set -euo pipefail
+. "$(dirname "$0")/lib.sh"
+
+out=${1:?usage: linux-build OUT}
+site=https://pkg.pimalaya.org
+keep=$(jq -r .keep <<<"$catalogue")
+revision=$(jq -r .revision <<<"$catalogue")
+
+work=$(mktemp -d)
+export GNUPGHOME=$work/gnupg
+mkdir -m 700 "$GNUPGHOME"
+trap 'gpgconf --kill gpg-agent 2>/dev/null; rm -rf "$work"' EXIT
+
+# Each release system, its Debian and RPM architectures (- for none) and the
+# ELF machine of its binary.
+systems='x86_64-linux amd64 x86_64 62
+aarch64-linux arm64 aarch64 183
+i686-linux i386 i686 3
+armv6l-linux armhf - 40
+armv7l-linux - armv7hl 40'
+
+output() {
+  log "$1"
+  if [[ -n ${GITHUB_OUTPUT:-} ]]; then echo "$1" >>"$GITHUB_OUTPUT"; fi
+}
+
+# Print "from to" for every file of the archive extracted in $3, from its path
+# in the archive to its installed path, for the packager $1 and the CLI $2.
+contents() {
+  local kind=$1 cli=$2 src=$3 zsh f to
+  local -A seen=()
+  if [[ $kind == deb ]]; then
+    zsh=/usr/share/zsh/vendor-completions
+  else
+    zsh=/usr/share/zsh/site-functions
+  fi
+  while IFS= read -r f; do
+    case $f in
+      "$cli") to=/usr/bin/$cli ;;
+      share/man/*.[1-9].gz)
+        to=${f%.gz}
+        to=/usr/share/man/man${to##*.}/${f##*/}
+        ;;
+      share/completions/"$cli".bash | share/bash-completion/completions/"$cli".bash)
+        to=/usr/share/bash-completion/completions/$cli
+        ;;
+      share/completions/_"$cli" | share/completions/"$cli".zsh | share/zsh/site-functions/_"$cli")
+        to=$zsh/_$cli
+        ;;
+      share/completions/"$cli".fish | share/fish/vendor_completions.d/"$cli".fish)
+        to=/usr/share/fish/vendor_completions.d/$cli.fish
+        ;;
+      share/completions/"$cli".elv | share/completions/"$cli".elvish) continue ;;
+      share/completions/_"$cli".ps1 | share/completions/"$cli".powershell) continue ;;
+      share/applications/*.desktop) to=/usr/share/applications/${f##*/} ;;
+      share/schemas/*.json) to=/usr/share/$cli/schemas/${f##*/} ;;
+      share/doc/"$cli"/*) to=/usr/share/doc/$cli/${f#share/doc/"$cli"/} ;;
+      *) die "$cli: unknown archive entry $f" ;;
+    esac
+    if [[ -n ${seen[$to]:-} ]]; then continue; fi
+    seen[$to]=1
+    printf '%s %s\n' "$f" "$to"
+  done < <(cd "$src" && find . -type f | sed 's|^\./||' | LC_ALL=C sort)
+}
+
+# Print the nfpm configuration of the $1 package of the CLI $2 (repository
+# $3) at version $4 for the architecture $5, from the archive extracted in $6
+# and the licence files in $7.
+nfpm_config() {
+  local kind=$1 cli=$2 repo=$3 version=$4 arch=$5 src=$6 licenses=$7 from to f
+  cat <<EOF
+name: $cli
+arch: $arch
+platform: linux
+version: $version
+release: $revision
+section: utils
+priority: optional
+maintainer: $(quote "Pimalaya <pimalaya.org@posteo.net>")
+description: $(quote "$(cli_field "$cli" description)")
+vendor: Pimalaya
+homepage: https://github.com/$repo
+license: $(quote "$(cli_field "$cli" license)")
+deb:
+  compression: xz
+rpm:
+  compression: xz
+  signature:
+    key_file: $work/key.asc
+contents:
+EOF
+  contents "$kind" "$cli" "$src" >"$work/contents"
+  while read -r from to; do
+    printf '  - src: %s\n    dst: %s\n' "$(quote "$src/$from")" "$(quote "$to")"
+  done <"$work/contents"
+  for f in "$licenses"/*; do
+    to=/usr/share/doc/$cli/${f##*/}
+    printf '  - src: %s\n    dst: %s\n' "$(quote "$f")" "$(quote "$to")"
+  done
+}
+
+# Print the value of the placeholder $1 of the install page.
+fill() {
+  local cli repo tag
+  case $1 in
+    CLIS)
+      for cli in $(cut -d' ' -f2 "$plan" | LC_ALL=C sort -u); do
+        repo=$(cli_field "$cli" repository)
+        tag=$(awk -v c="$cli" '$2 == c { print $4; exit }' "$plan")
+        printf '<li><a href="https://github.com/%s">%s</a> %s: %s</li>\n' \
+          "$repo" "$cli" "${tag#v}" \
+          "$(cli_field "$cli" description | html_escape)"
+      done
+      ;;
+    APT) html_escape <"$root/site/apt.sh" ;;
+    DNF) html_escape <"$root/site/dnf.sh" ;;
+    BREW)
+      for cli in $(clis_for homebrew); do
+        echo "brew install pimalaya/tap/$cli"
+      done
+      ;;
+    FINGERPRINT) sed -E 's/(.{4})/\1 /g; s/ $//' <<<"$fpr" ;;
+    *) die "unknown placeholder $1" ;;
+  esac
+}
+
+# Print the install page, its placeholders filled.
+render() {
+  local line key
+  while IFS= read -r line; do
+    if [[ $line =~ @([A-Z]+)@ ]]; then
+      key=${BASH_REMATCH[1]}
+      printf '%s%s%s\n' "${line%%@"$key"@*}" "$(fill "$key")" \
+        "${line#*@"$key"@}"
+    else
+      printf '%s\n' "$line"
+    fi
+  done <"$root/site/index.html"
+}
+
+# The signing key.
+if [[ -z ${GPG_PRIVATE_KEY:-} ]]; then die "GPG_PRIVATE_KEY is empty"; fi
+gpg --batch --quiet --import <<<"$GPG_PRIVATE_KEY"
+fpr=$(gpg --with-colons --list-secret-keys | awk -F: '/^fpr/ { print $10; exit }')
+want=$(gpg --with-colons --show-keys "$root/pimalaya.asc" | awk -F: '/^fpr/ { print $10; exit }')
+if [[ $fpr != "$want" && ${HUB_TEST_KEY:-} != 1 ]]; then
+  die "the signing key $fpr is not the key of pimalaya.asc, $want"
+fi
+(umask 077 && printf '%s\n' "$GPG_PRIVATE_KEY" >"$work/key.asc")
+
+# The plan: one line per package, "kind cli repository tag system arch
+# machine path".
+plan=$work/plan
+: >"$plan"
+for cli in $( (clis_for apt && clis_for dnf) | LC_ALL=C sort -u); do
+  repo=$(cli_field "$cli" repository)
+  channels=" $(cli_field "$cli" channels) "
+  while read -r tag assets; do
+    version=${tag#v}
+    while read -r system deb rpm machine; do
+      if [[ " $assets " != *" $cli.$system.tgz "* ]]; then
+        log "$cli $tag: no $system archive"
+        continue
+      fi
+      if [[ $channels == *" apt "* && $deb != - ]]; then
+        path=apt/pool/main/${cli:0:1}/$cli/${cli}_$version-${revision}_$deb.deb
+        echo "deb $cli $repo $tag $system $deb $machine $path"
+      fi
+      if [[ $channels == *" dnf "* && $rpm != - ]]; then
+        path=rpm/$cli-$version-$revision.$rpm.rpm
+        echo "rpm $cli $repo $tag $system $rpm $machine $path"
+      fi
+    done <<<"$systems" >>"$plan"
+  done < <(releases "$repo" "^${cli}[.][a-z0-9_]+-linux[.]tgz\$" "$keep")
+done
+
+# The manifest, compared with the live one.
+hub=$(cd "$root" &&
+  find catalogue.toml pimalaya.asc scripts site -type f -print0 |
+  LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)
+{
+  echo "key $fpr"
+  echo "hub $hub"
+  cut -d' ' -f8 "$plan" | LC_ALL=C sort
+} >"$work/manifest.txt"
+if ! curl -fsSL -o "$work/live.txt" "$site/manifest.txt" 2>/dev/null; then
+  : >"$work/live.txt"
+fi
+if [[ ${FORCE:-} != true ]] && cmp -s "$work/manifest.txt" "$work/live.txt"; then
+  output changed=false
+  exit 0
+fi
+
+# The packages, downloaded from the live site when published, else built.
+rm -rf "$out"
+mkdir -p "$out"
+while read -r kind cli repo tag system arch machine path <&3; do
+  mkdir -p "$out/${path%/*}"
+  if grep -qxF "$path" "$work/live.txt" &&
+    curl -fsSL --retry 3 -o "$out/$path" "$site/$path"; then
+    log "reused $path"
+    continue
+  fi
+  src=$work/src/$cli/$tag/$system
+  if [[ ! -d $src ]]; then
+    mkdir -p "$src"
+    curl -fsSL --retry 3 \
+      "https://github.com/$repo/releases/download/$tag/$cli.$system.tgz" |
+      tar -xz -C "$src"
+    got=$(od -An -tu2 -j18 -N2 "$src/$cli" | tr -d ' ')
+    if [[ $got != "$machine" ]]; then
+      die "$cli $tag $system: ELF machine $got, expected $machine"
+    fi
+  fi
+  licenses=$work/src/$cli/$tag/licenses
+  if [[ ! -d $licenses ]]; then
+    mkdir -p "$licenses"
+    for f in $(cli_field "$cli" license-files); do
+      curl -fsSL --retry 3 -o "$licenses/$f" \
+        "https://raw.githubusercontent.com/$repo/$tag/$f"
+    done
+  fi
+  nfpm_config "$kind" "$cli" "$repo" "${tag#v}" "$arch" "$src" "$licenses" \
+    >"$work/nfpm.yaml"
+  nfpm package --config "$work/nfpm.yaml" --packager "$kind" \
+    --target "$out/$path" >/dev/null
+  log "built $path"
+done 3<"$plan"
+
+# The APT repository.
+if [[ -d $out/apt ]]; then
+  (
+    cd "$out/apt"
+    arches=$(awk '$2 != "-" { print $2 }' <<<"$systems" | tr '\n' ' ')
+    for arch in $arches; do
+      dir=dists/stable/main/binary-$arch
+      mkdir -p "$dir"
+      apt-ftparchive --arch "$arch" packages pool >"$dir/Packages"
+      gzip -9nk "$dir/Packages"
+    done
+    apt-ftparchive \
+      -o APT::FTPArchive::Release::Origin=Pimalaya \
+      -o APT::FTPArchive::Release::Label=Pimalaya \
+      -o APT::FTPArchive::Release::Suite=stable \
+      -o APT::FTPArchive::Release::Codename=stable \
+      -o "APT::FTPArchive::Release::Architectures=${arches% }" \
+      -o APT::FTPArchive::Release::Components=main \
+      -o "APT::FTPArchive::Release::Description=Pimalaya command-line tools" \
+      release dists/stable >"$work/Release"
+    mv "$work/Release" dists/stable/Release
+    gpg --batch --yes --local-user "$fpr" --clearsign \
+      --output dists/stable/InRelease dists/stable/Release
+    gpg --batch --yes --local-user "$fpr" --armor --detach-sign \
+      --output dists/stable/Release.gpg dists/stable/Release
+  )
+fi
+
+# The DNF repository.
+if [[ -d $out/rpm ]]; then
+  createrepo_c --quiet --no-database --general-compress-type=gz "$out/rpm"
+  gpg --batch --yes --local-user "$fpr" --armor --detach-sign \
+    --output "$out/rpm/repodata/repomd.xml.asc" "$out/rpm/repodata/repomd.xml"
+fi
+
+# The site.
+gpg --armor --export "$fpr" >"$out/pimalaya.asc"
+cp "$root/site/pimalaya.repo" "$out/pimalaya.repo"
+render >"$out/index.html"
+cp "$work/manifest.txt" "$out/manifest.txt"
+output changed=true

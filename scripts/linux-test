@@ -1,0 +1,62 @@
+#!/usr/bin/env bash
+# Serve the site built in SITE over HTTP to Debian, Ubuntu, Fedora and Rocky
+# Linux containers, add the repository there with the install page's
+# commands, install every catalogued CLI and run it.
+#
+# Usage: linux-test SITE
+
+set -euo pipefail
+. "$(dirname "$0")/lib.sh"
+
+site=$(cd "${1:?usage: linux-test SITE}" && pwd)
+id=hub-test-$$
+url=http://$id-site:8080
+
+docker network create "$id" >/dev/null
+trap 'docker rm -f "$id-site" >/dev/null 2>&1; docker network rm "$id" >/dev/null 2>&1' EXIT
+docker run --detach --name "$id-site" --network "$id" \
+  --volume "$site:/site:ro" busybox:1.37 httpd -f -p 8080 -h /site >/dev/null
+
+apt_test='
+sudo() { "$@"; }
+export DEBIAN_FRONTEND=noninteractive
+apt-get update -qq
+apt-get install -y -qq curl ca-certificates >/dev/null
+sed "s|https://pkg.pimalaya.org|$URL|g" /install/apt.sh >/tmp/install.sh
+. /tmp/install.sh
+for cli in $CLIS; do
+  apt-get install -y -qq "$cli" >/dev/null
+  "$cli" --version
+  if [ ! -e /etc/dpkg/dpkg.cfg.d/excludes ]; then
+    dpkg -L "$cli" | while read -r f; do
+      [ -e "$f" ] || { echo "$cli: missing $f"; exit 1; }
+    done
+  fi
+done
+'
+
+dnf_test='
+sudo() { "$@"; }
+sed "s|https://pkg.pimalaya.org|$URL|g" /install/dnf.sh >/tmp/install.sh
+. /tmp/install.sh
+sed -i "s|https://pkg.pimalaya.org|$URL|g" /etc/yum.repos.d/pimalaya.repo
+for cli in $CLIS; do
+  dnf install -y -q "$cli"
+  "$cli" --version
+done
+'
+
+# Run the script $2 in the image $1 for the CLIs $3.
+run() {
+  log "== $1"
+  docker run --rm --network "$id" --volume "$root/site:/install:ro" \
+    --env URL="$url" --env CLIS="$3" "$1" bash -euo pipefail -c "$2"
+}
+
+apt_clis=$(clis_for apt | tr '\n' ' ')
+dnf_clis=$(clis_for dnf | tr '\n' ' ')
+run debian:stable "$apt_test" "$apt_clis"
+run ubuntu:latest "$apt_test" "$apt_clis"
+run fedora:latest "$dnf_test" "$dnf_clis"
+run rockylinux/rockylinux:9 "$dnf_test" "$dnf_clis"
+log "all install tests passed"

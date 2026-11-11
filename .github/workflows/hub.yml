@@ -1,0 +1,144 @@
+name: Hub
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry-run:
+        description: Build and test without publishing
+        type: boolean
+        default: true
+  schedule:
+    - cron: "17 5 * * *"
+
+concurrency:
+  group: hub
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry-run }}
+
+jobs:
+  linux:
+    name: APT and DNF
+    runs-on: ubuntu-24.04
+    outputs:
+      changed: ${{ steps.build.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cachix/install-nix-action@v31
+      - id: build
+        name: Build
+        run: nix develop --command ./scripts/linux-build out/site
+        env:
+          FORCE: ${{ env.DRY_RUN }}
+          GH_TOKEN: ${{ github.token }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+      - name: Test
+        if: steps.build.outputs.changed == 'true'
+        run: nix develop --command ./scripts/linux-test out/site
+      - if: steps.build.outputs.changed == 'true' && env.DRY_RUN != 'true'
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: out/site
+
+  pages:
+    name: Deploy pkg.pimalaya.org
+    needs: linux
+    if: needs.linux.outputs.changed == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry-run)
+    runs-on: ubuntu-24.04
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v5
+
+  formula:
+    name: Homebrew formulae
+    runs-on: ubuntu-24.04
+    outputs:
+      changed: ${{ steps.write.outputs.changed }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: pimalaya/homebrew-tap
+          path: tap
+      - uses: cachix/install-nix-action@v31
+      - id: write
+        name: Write
+        run: nix develop --command ./scripts/formula out tap
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - uses: actions/upload-artifact@v7
+        with:
+          name: formulae
+          path: out/Formula
+
+  formula-test:
+    name: Homebrew test (${{ matrix.os }})
+    needs: formula
+    if: needs.formula.outputs.changed == 'true' || (github.event_name == 'workflow_dispatch' && inputs.dry-run)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-15, macos-15-intel, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    env:
+      HOMEBREW_NO_ANALYTICS: 1
+      HOMEBREW_NO_AUTO_UPDATE: 1
+      HOMEBREW_NO_INSTALL_CLEANUP: 1
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: formulae
+          path: Formula
+      - name: Install, test and audit
+        run: |
+          if [ "$RUNNER_OS" = Linux ]; then
+            eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+          fi
+          brew tap-new --no-git local/hubtest
+          tap=$(brew --repository local/hubtest)
+          mkdir -p "$tap/Formula"
+          cp Formula/*.rb "$tap/Formula/"
+          for f in Formula/*.rb; do
+            name=$(basename "$f" .rb)
+            brew install --formula "local/hubtest/$name"
+            brew test "local/hubtest/$name"
+            brew audit --strict --formula "local/hubtest/$name"
+          done
+
+  formula-push:
+    name: Push to the tap
+    needs: [formula, formula-test]
+    if: needs.formula.outputs.changed == 'true' && !(github.event_name == 'workflow_dispatch' && inputs.dry-run)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          repository: pimalaya/homebrew-tap
+          ssh-key: ${{ secrets.TAP_DEPLOY_KEY }}
+      - uses: actions/download-artifact@v8
+        with:
+          name: formulae
+          path: Formula
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add Formula
+          if git diff --cached --quiet; then exit 0; fi
+          msg=$(git diff --cached --name-only |
+            sed -n 's|^Formula/\(.*\)\.rb$|\1|p' |
+            while read -r name; do
+              printf '%s %s, ' "$name" "$(sed -n 's/^  version "\(.*\)"$/\1/p' "Formula/$name.rb")"
+            done | sed 's/, $//')
+          git commit --quiet --message "$msg"
+          git push --quiet

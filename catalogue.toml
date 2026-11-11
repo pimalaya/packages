@@ -1,0 +1,21 @@
+# The CLIs the hub packages and the channels each ships to (apt, dnf,
+# homebrew). keep is the number of releases the APT and DNF repositories hold
+# per CLI. revision is the package release number (ortie_2.3.0-1): bump it to
+# rebuild every published package.
+
+keep = 3
+revision = 1
+
+[cli.ortie]
+repository = "pimalaya/ortie"
+description = "CLI to manage OAuth tokens"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+channels = ["apt", "dnf", "homebrew"]
+
+[cli.himalaya]
+repository = "pimalaya/himalaya"
+description = "CLI to manage emails"
+license = "MIT OR Apache-2.0"
+license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
+channels = ["apt", "dnf"]
