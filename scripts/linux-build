@@ -166,7 +166,9 @@ plan=$work/plan
 for cli in $( (clis_for apt && clis_for dnf) | LC_ALL=C sort -u); do
   repo=$(cli_field "$cli" repository)
   channels=" $(cli_field "$cli" channels) "
+  found=false
   while read -r tag assets; do
+    found=true
     version=${tag#v}
     while read -r system deb rpm machine; do
       if [[ " $assets " != *" $cli.$system.tgz "* ]]; then
@@ -183,6 +185,9 @@ for cli in $( (clis_for apt && clis_for dnf) | LC_ALL=C sort -u); do
       fi
     done <<<"$systems" >>"$plan"
   done < <(releases "$repo" "^${cli}[.][a-z0-9_]+-linux[.]tgz\$" "$keep")
+  if [[ $found == false ]]; then
+    log "$cli: no stable release carries a Linux archive"
+  fi
 done
 
 # The manifest, compared with the live one.

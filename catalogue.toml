@@ -1,7 +1,8 @@
 # The CLIs the hub packages and the channels each ships to (apt, dnf,
-# homebrew). keep is the number of releases the APT and DNF repositories hold
-# per CLI. revision is the package release number (ortie_2.3.0-1): bump it to
-# rebuild every published package.
+# homebrew). Only stable releases ship: tagged X.Y.Z with X of 1 or more, no
+# pre-release. keep is the number of them the APT and DNF repositories hold per
+# CLI, highest versions first. revision is the package release number
+# (ortie_2.3.0-1): bump it to rebuild every published package.
 
 keep = 3
 revision = 1
