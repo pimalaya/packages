@@ -8,7 +8,7 @@ change: packages-hub
 Capability `hub`:
 
 ### Requirement: A catalogue of CLIs and channels
-The repository SHALL list in catalogue.toml each CLI it packages: its GitHub repository, its one-line description and the channels it ships to. Ortie ships to `apt`, `dnf` and `homebrew`, himalaya to `apt` and `dnf`. The catalogue SHALL also set the family licence, `MIT OR Apache-2.0`, and its files, LICENSE-MIT and LICENSE-APACHE. The hub SHALL never touch a CLI or a channel the catalogue does not list.
+The repository SHALL list in catalogue.toml each CLI it packages: its GitHub repository, its one-line description and the channels it ships to. Comodoro ships to `apt`, `dnf` and `homebrew`; ortie and himalaya list no channel until their 3.0.0 releases, when ortie returns to `apt`, `dnf` and `homebrew` and himalaya to `apt` and `dnf`. The catalogue SHALL also set the family licence, `MIT OR Apache-2.0`, and its files, LICENSE-MIT and LICENSE-APACHE. The hub SHALL never touch a CLI or a channel the catalogue does not list.
 
 ### Requirement: Packages come from the release archives
 A run SHALL package the `<cli>.<system>.tgz` archives of the CLI's stable GitHub releases and SHALL build nothing from source. A stable release is published, not a draft nor a pre-release, tagged `X.Y.Z` or `vX.Y.Z` with X of 1 or more, and its Cargo.toml at the tag declares exactly the catalogue's licence: 0.x versions, suffixed tags like `v1.0.0-beta` and releases under another licence never ship, and each skipped release is logged with its licence. Releases rank by version, not by date. The licence files SHALL come from the CLI's repository at the release tag. A release list or a Cargo.toml that cannot be fetched SHALL fail the run rather than leave releases out.
@@ -62,7 +62,7 @@ A package SHALL install the binary in /usr/bin, the man pages in /usr/share/man/
 A package already published SHALL be served again byte for byte, never rebuilt nor re-signed, until `revision` in catalogue.toml changes, which renames and rebuilds every package.
 
 ### Requirement: Install test
-Before the site is deployed, a run SHALL serve the built site to Debian stable, Ubuntu LTS, Fedora and Rocky Linux 9 containers, add the repository there with the install page's commands, install every catalogued CLI and run `<cli> --version`, failing on any signature or install error. Where the image keeps documentation (Debian), every file of every installed package SHALL exist.
+Before the site is deployed, a run SHALL serve the built site to Debian stable, Ubuntu LTS, Fedora and Rocky Linux 9 containers, add the repository there with the install page's commands, install every CLI the site carries and run `<cli> --version`, failing on any signature or install error. Where the image keeps documentation (Debian), every file of every installed package SHALL exist.
 
 Capability `homebrew-tap`:
 

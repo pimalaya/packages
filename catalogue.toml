@@ -10,12 +10,19 @@ revision = 1
 license = "MIT OR Apache-2.0"
 license-files = ["LICENSE-MIT", "LICENSE-APACHE"]
 
+[cli.comodoro]
+repository = "pimalaya/comodoro"
+description = "CLI to manage timers"
+channels = ["apt", "dnf", "homebrew"]
+
+# Back to apt, dnf and homebrew at 3.0.0.
 [cli.ortie]
 repository = "pimalaya/ortie"
 description = "CLI to manage OAuth tokens"
-channels = ["apt", "dnf", "homebrew"]
+channels = []
 
+# Back to apt and dnf at 3.0.0.
 [cli.himalaya]
 repository = "pimalaya/himalaya"
 description = "CLI to manage emails"
-channels = ["apt", "dnf"]
+channels = []

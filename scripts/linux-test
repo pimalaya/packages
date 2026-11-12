@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Serve the site built in SITE over HTTP to Debian, Ubuntu, Fedora and Rocky
 # Linux containers, add the repository there with the install page's
-# commands, install every catalogued CLI and run it.
+# commands, install every CLI the site carries and run it.
 #
 # Usage: linux-test SITE
 
@@ -53,8 +53,14 @@ run() {
     --env URL="$url" --env CLIS="$3" "$1" bash -euo pipefail -c "$2"
 }
 
-apt_clis=$(clis_for apt | tr '\n' ' ')
-dnf_clis=$(clis_for dnf | tr '\n' ' ')
+# The CLIs the site carries, from its manifest: a catalogued CLI without a
+# stable release has no package to install.
+apt_clis=$(sed -nE 's|^apt/pool/main/[^/]+/([^/]+)/.*|\1|p' \
+  "$site/manifest.txt" | sort -u | tr '\n' ' ')
+dnf_clis=$(sed -nE 's|^rpm/(.+)-[^-]+-[^-]+[.][^.]+[.]rpm$|\1|p' \
+  "$site/manifest.txt" | sort -u | tr '\n' ' ')
+log "apt: $apt_clis"
+log "dnf: $dnf_clis"
 run debian:stable "$apt_test" "$apt_clis"
 run ubuntu:latest "$apt_test" "$apt_clis"
 run fedora:latest "$dnf_test" "$dnf_clis"

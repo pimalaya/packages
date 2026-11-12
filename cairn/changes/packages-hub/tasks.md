@@ -15,5 +15,6 @@ change: packages-hub
 - [ ] Pages deploy after the tests pass
 - [ ] Homebrew: generate Formula/ortie.rb from the release archives and their SHA-256, without a `version` the strict audit calls redundant (done), install, test and audit it from a local tap on macos-15, macos-15-intel and ubuntu (done), push to pimalaya/homebrew-tap with TAP_DEPLOY_KEY; tap README (done)
 - [x] Workflow: workflow_dispatch with a dry-run input, daily schedule, one run at a time, channels independent; green dry run on GitHub on 2026-11-11 (run 43100038134, real signing key)
-- [ ] First real run by hand once the family releases are out (maintainer, 2026-11-12: wait for them), after the maintainer's go; the workflow stays disabled until then; check the install page commands on a real Debian and Fedora machine
+- [ ] First real run with comodoro alone (maintainer's go, 2026-11-12): comodoro 2.0.0 on APT, DNF and the tap; check the install page commands on a real Debian and Fedora machine and `brew install pimalaya/tap/comodoro` on macOS
+- [ ] Ortie and himalaya back in their channels once their 3.0.0 releases are out
 - [ ] Land: fold the delta into spec/hub.md, spec/linux-repository.md and spec/homebrew-tap.md, write the log entry
