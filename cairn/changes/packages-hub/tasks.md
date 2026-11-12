@@ -9,6 +9,7 @@ change: packages-hub
 - [x] DNF repository: rpm signatures, createrepo_c, repomd.xml.asc, pimalaya.repo
 - [x] State: reuse the packages the live site already serves, build only new releases, keep the 3 latest per CLI
 - [x] Stable releases only (maintainer, 2026-11-12): tags X.Y.Z from 1.0.0 on, no pre-release suffix, ranked by version; the formula takes the highest one too
+- [x] Family licence only (maintainer, 2026-11-12): a release ships only when its Cargo.toml at the tag declares the catalogue's `MIT OR Apache-2.0`; licence and files move to the catalogue's top; a failing release listing or Cargo.toml fetch stops the run instead of dropping releases
 - [x] Site: install page (APT with a deb822 source and Signed-By, DNF with pimalaya.repo, Homebrew, fingerprint), the public key exported from the signing key
 - [x] Install tests against the locally served site in debian:stable, ubuntu:latest, fedora:latest and rockylinux:9 containers (Ubuntu images exclude /usr/share/doc, so the file check runs on Debian only); passed locally on 2026-11-11 with a throwaway key
 - [ ] Pages deploy after the tests pass

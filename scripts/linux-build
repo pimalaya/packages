@@ -91,7 +91,7 @@ maintainer: $(quote "Pimalaya <pimalaya.org@posteo.net>")
 description: $(quote "$(cli_field "$cli" description)")
 vendor: Pimalaya
 homepage: https://github.com/$repo
-license: $(quote "$(cli_field "$cli" license)")
+license: $(quote "$license")
 deb:
   compression: xz
 rpm:
@@ -166,9 +166,14 @@ plan=$work/plan
 for cli in $( (clis_for apt && clis_for dnf) | LC_ALL=C sort -u); do
   repo=$(cli_field "$cli" repository)
   channels=" $(cli_field "$cli" channels) "
-  found=false
+  # Read whole first, so a failing listing stops the run instead of dropping
+  # the CLI from the site.
+  rels=$(releases "$repo" "^${cli}[.][a-z0-9_]+-linux[.]tgz\$" "$keep")
+  if [[ -z $rels ]]; then
+    log "$cli: no stable release carries a Linux archive"
+    continue
+  fi
   while read -r tag assets; do
-    found=true
     version=${tag#v}
     while read -r system deb rpm machine; do
       if [[ " $assets " != *" $cli.$system.tgz "* ]]; then
@@ -184,10 +189,7 @@ for cli in $( (clis_for apt && clis_for dnf) | LC_ALL=C sort -u); do
         echo "rpm $cli $repo $tag $system $rpm $machine $path"
       fi
     done <<<"$systems" >>"$plan"
-  done < <(releases "$repo" "^${cli}[.][a-z0-9_]+-linux[.]tgz\$" "$keep")
-  if [[ $found == false ]]; then
-    log "$cli: no stable release carries a Linux archive"
-  fi
+  done <<<"$rels"
 done
 
 # The manifest, compared with the live one.
@@ -231,7 +233,7 @@ while read -r kind cli repo tag system arch machine path <&3; do
   licenses=$work/src/$cli/$tag/licenses
   if [[ ! -d $licenses ]]; then
     mkdir -p "$licenses"
-    for f in $(cli_field "$cli" license-files); do
+    for f in $license_files; do
       curl -fsSL --retry 3 -o "$licenses/$f" \
         "https://raw.githubusercontent.com/$repo/$tag/$f"
     done

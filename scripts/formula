@@ -25,15 +25,22 @@ names=$(awk '{ print $3 }' <<<"$systems" | jq -R . | jq -sc .)
 
 for cli in $(clis_for homebrew); do
   repo=$(cli_field "$cli" repository)
-  tag=$(gh api "repos/$repo/releases?per_page=30" |
+  tags=$(gh api "repos/$repo/releases?per_page=30" |
     jq -r --arg cli "$cli" --argjson systems "$names" "$stable"'
       stable
       | map(select([.assets[].name] as $assets
                    | all($systems[]; . as $s
                          | $assets | index("\($cli).\($s).tgz") != null)))
-      | .[0].tag_name // empty')
+      | .[].tag_name')
+  tag=
+  for t in $tags; do
+    if licensed "$repo" "$t"; then
+      tag=$t
+      break
+    fi
+  done
   if [[ -z $tag ]]; then
-    die "$cli: no stable release carries the four archives"
+    die "$cli: no stable release under $license carries the four archives"
   fi
 
   declare -A sha=()
@@ -82,13 +89,12 @@ for cli in $(clis_for homebrew); do
     install+=("doc.install Dir[\"share/doc/$cli/*\"]")
   fi
 
-  license=$(cli_field "$cli" license)
   if [[ $license == *" OR "* ]]; then
-    license="any_of: [\"$(sed 's/ OR /", "/g' <<<"$license")\"]"
+    dsl="any_of: [\"$(sed 's/ OR /", "/g' <<<"$license")\"]"
   elif [[ $license == *" AND "* ]]; then
-    license="all_of: [\"$(sed 's/ AND /", "/g' <<<"$license")\"]"
+    dsl="all_of: [\"$(sed 's/ AND /", "/g' <<<"$license")\"]"
   else
-    license="\"$license\""
+    dsl="\"$license\""
   fi
 
   class=$(sed -E 's/(^|-)([a-z])/\U\2/g' <<<"$cli")
@@ -98,7 +104,7 @@ for cli in $(clis_for homebrew); do
     echo "class $class < Formula"
     echo "  desc \"$(cli_field "$cli" description)\""
     echo "  homepage \"https://github.com/$repo\""
-    echo "  license $license"
+    echo "  license $dsl"
     for os in macos linux; do
       echo
       echo "  on_$os do"

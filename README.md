@@ -5,7 +5,7 @@ The hub turning the GitHub releases of the Pimalaya CLIs into packages: the sign
 ## How it works
 
 - [catalogue.toml](catalogue.toml) lists the CLIs and the channels each ships to.
-- The [Hub workflow](.github/workflows/hub.yml) runs every day and by hand, where it is a dry run unless the `dry-run` box is unticked. Each run makes every channel match the highest stable releases (X.Y.Z from 1.0.0 on, no pre-release) and publishes nothing when they already do.
+- The [Hub workflow](.github/workflows/hub.yml) runs every day and by hand, where it is a dry run unless the `dry-run` box is unticked. Each run makes every channel match the highest stable releases (X.Y.Z from 1.0.0 on, no pre-release, under the catalogue's licence `MIT OR Apache-2.0`) and publishes nothing when they already do.
 - [scripts/linux-build](scripts/linux-build) packages the static binaries of the release archives with nfpm, signs the repositories and writes the site; [scripts/linux-test](scripts/linux-test) installs every package in Debian, Ubuntu, Fedora and Rocky Linux containers before the deploy.
 - [scripts/formula](scripts/formula) writes the Homebrew formulae, installed and tested on macOS and Linux before the push to the tap.
 

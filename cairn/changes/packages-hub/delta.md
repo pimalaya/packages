@@ -8,14 +8,19 @@ change: packages-hub
 Capability `hub`:
 
 ### Requirement: A catalogue of CLIs and channels
-The repository SHALL list in catalogue.toml each CLI it packages: its GitHub repository, its one-line description, its licence, its licence files and the channels it ships to. Ortie ships to `apt`, `dnf` and `homebrew`, himalaya to `apt` and `dnf`. The hub SHALL never touch a CLI or a channel the catalogue does not list.
+The repository SHALL list in catalogue.toml each CLI it packages: its GitHub repository, its one-line description and the channels it ships to. Ortie ships to `apt`, `dnf` and `homebrew`, himalaya to `apt` and `dnf`. The catalogue SHALL also set the family licence, `MIT OR Apache-2.0`, and its files, LICENSE-MIT and LICENSE-APACHE. The hub SHALL never touch a CLI or a channel the catalogue does not list.
 
 ### Requirement: Packages come from the release archives
-A run SHALL package the `<cli>.<system>.tgz` archives of the CLI's stable GitHub releases and SHALL build nothing from source. A stable release is published, not a draft nor a pre-release, and tagged `X.Y.Z` or `vX.Y.Z` with X of 1 or more: 0.x versions and suffixed tags like `v1.0.0-beta` never ship. Releases rank by version, not by date. The licence files SHALL come from the CLI's repository at the release tag.
+A run SHALL package the `<cli>.<system>.tgz` archives of the CLI's stable GitHub releases and SHALL build nothing from source. A stable release is published, not a draft nor a pre-release, tagged `X.Y.Z` or `vX.Y.Z` with X of 1 or more, and its Cargo.toml at the tag declares exactly the catalogue's licence: 0.x versions, suffixed tags like `v1.0.0-beta` and releases under another licence never ship, and each skipped release is logged with its licence. Releases rank by version, not by date. The licence files SHALL come from the CLI's repository at the release tag. A release list or a Cargo.toml that cannot be fetched SHALL fail the run rather than leave releases out.
 
 #### Scenario: A CLI before 1.0
 - **WHEN** a catalogued CLI has only 0.x releases
 - **THEN** no channel ships it, and its first release from 1.0.0 on ships at the next run
+
+#### Scenario: A release under another licence
+- **GIVEN** comodoro 1.0.0 declaring `AGPL-3.0-or-later` and comodoro 2.0.0 declaring `MIT OR Apache-2.0`
+- **WHEN** a run plans comodoro
+- **THEN** only 2.0.0 ships, and the log names 1.0.0's licence
 
 ### Requirement: Runs converge
 A run SHALL make every channel of every catalogued CLI match its highest stable releases, whether it was started by the daily schedule or by hand through `workflow_dispatch`. Runs SHALL go one at a time. The site SHALL carry manifest.txt, listing the signing key's fingerprint, a hash of the hub's files and every package path; a run whose manifest matches the live one SHALL publish nothing to the site, and a run whose formula matches the tap's SHALL push nothing.
