@@ -15,11 +15,10 @@ repository = "pimalaya/comodoro"
 description = "CLI to manage timers"
 channels = ["apt", "dnf", "homebrew"]
 
-# Back to apt, dnf and homebrew at 3.0.0.
 [cli.ortie]
 repository = "pimalaya/ortie"
 description = "CLI to manage OAuth tokens"
-channels = []
+channels = ["apt", "dnf", "homebrew"]
 
 # Back to apt and dnf at 3.0.0.
 [cli.himalaya]
