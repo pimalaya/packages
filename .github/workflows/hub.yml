@@ -28,10 +28,22 @@ jobs:
       changed: ${{ steps.build.outputs.changed }}
     steps:
       - uses: actions/checkout@v7
+      - uses: actions/checkout@v7
+        with:
+          repository: pimalaya/websites
+          path: websites
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: websites/package-lock.json
+      - name: Build the install page
+        working-directory: websites
+        run: npm ci && npm run build:pkg
       - uses: cachix/install-nix-action@v31
       - id: build
         name: Build
-        run: nix develop --command ./scripts/linux-build out/site
+        run: nix develop --command ./scripts/linux-build out/site websites/sites/pkg/dist
         env:
           FORCE: ${{ env.DRY_RUN }}
           GH_TOKEN: ${{ github.token }}

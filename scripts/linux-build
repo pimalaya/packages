@@ -2,7 +2,11 @@
 # Build the APT and DNF repositories and the site of pkg.pimalaya.org into
 # OUT, from the GitHub releases of the CLIs the catalogue ships to apt or dnf.
 #
-# Usage: linux-build OUT
+# Usage: linux-build OUT PAGE
+#
+# PAGE is the install page built by pimalaya/websites (npm run build:pkg,
+# sites/pkg/dist): its files are copied to the site and its @NAME@
+# placeholders filled.
 #
 # GPG_PRIVATE_KEY holds the armored signing key, which must be the key of
 # pimalaya.asc unless HUB_TEST_KEY=1. Unless FORCE=true, nothing is built when
@@ -12,7 +16,9 @@
 set -euo pipefail
 . "$(dirname "$0")/lib.sh"
 
-out=${1:?usage: linux-build OUT}
+out=${1:?usage: linux-build OUT PAGE}
+page=$(cd "${2:?usage: linux-build OUT PAGE}" && pwd)
+if [[ ! -f $page/index.html ]]; then die "no index.html in $page"; fi
 site=https://pkg.pimalaya.org
 keep=$(jq -r .keep <<<"$catalogue")
 revision=$(jq -r .revision <<<"$catalogue")
@@ -118,7 +124,7 @@ fill() {
       for cli in $(cut -d' ' -f2 "$plan" | LC_ALL=C sort -u); do
         repo=$(cli_field "$cli" repository)
         tag=$(awk -v c="$cli" '$2 == c { print $4; exit }' "$plan")
-        printf '<li><a href="https://github.com/%s">%s</a> %s: %s</li>\n' \
+        printf '<li><a class="pkg-tool__name" href="https://github.com/%s">%s</a><span class="pkg-tool__version">%s</span><span class="pkg-tool__description">%s</span></li>\n' \
           "$repo" "$cli" "${tag#v}" \
           "$(cli_field "$cli" description | html_escape)"
       done
@@ -135,18 +141,16 @@ fill() {
   esac
 }
 
-# Print the install page, its placeholders filled.
+# Print the install page of the built page directory, its placeholders filled
+# wherever they stand. The quoted replacement keeps a & in a value literal.
 render() {
-  local line key
-  while IFS= read -r line; do
-    if [[ $line =~ @([A-Z]+)@ ]]; then
-      key=${BASH_REMATCH[1]}
-      printf '%s%s%s\n' "${line%%@"$key"@*}" "$(fill "$key")" \
-        "${line#*@"$key"@}"
-    else
-      printf '%s\n' "$line"
-    fi
-  done <"$root/site/index.html"
+  local html key value
+  html=$(<"$page/index.html")
+  for key in $(grep -oE '@[A-Z]+@' "$page/index.html" | tr -d @ | sort -u); do
+    value=$(fill "$key")
+    html=${html//@"$key"@/"$value"}
+  done
+  printf '%s\n' "$html"
 }
 
 # The signing key.
@@ -199,6 +203,8 @@ hub=$(cd "$root" &&
 {
   echo "key $fpr"
   echo "hub $hub"
+  echo "page $(cd "$page" && find . -type f -print0 |
+    LC_ALL=C sort -z | xargs -0 sha256sum | sha256sum | cut -d' ' -f1)"
   cut -d' ' -f8 "$plan" | LC_ALL=C sort
 } >"$work/manifest.txt"
 if ! curl -fsSL -o "$work/live.txt" "$site/manifest.txt" 2>/dev/null; then
@@ -283,6 +289,7 @@ fi
 # The site.
 gpg --armor --export "$fpr" >"$out/pimalaya.asc"
 cp "$root/site/pimalaya.repo" "$out/pimalaya.repo"
+cp -R --no-preserve=mode "$page/." "$out/"
 render >"$out/index.html"
 cp "$work/manifest.txt" "$out/manifest.txt"
 output changed=true

@@ -21,3 +21,4 @@ change: packages-hub
 - [x] Ortie 3.0.0 (maintainer's go, 2026-11-21, dispatched run 44905046004): 3.0.0, 2.3.0 and 2.2.0 on APT and DNF (2.1.0 rotated out), Formula/ortie.rb at 3.0.0 (tap d22d71e); the v3 archive adds share/schemas and share/doc/ortie, both mapped
 - [ ] Himalaya back in its channels once its 3.0.0 release is out
 - [ ] Land: fold the delta into spec/hub.md, spec/linux-repository.md and spec/homebrew-tap.md, write the log entry
+- [x] Install page in the family theme (maintainer's go, 2026-11-21): the page is the `pkg` site of pimalaya/websites (change pkg-site there), checked out and built with `npm run build:pkg` in the APT and DNF job; linux-build takes the built directory as its second argument, copies it to the site, fills the placeholders across the whole file and adds the page's hash to the manifest; site/index.html removed; built locally with a throwaway key and checked in light, dark and phone widths

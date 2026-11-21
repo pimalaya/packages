@@ -23,7 +23,7 @@ A run SHALL package the `<cli>.<system>.tgz` archives of the CLI's stable GitHub
 - **THEN** only 2.0.0 ships, and the log names 1.0.0's licence
 
 ### Requirement: Runs converge
-A run SHALL make every channel of every catalogued CLI match its highest stable releases, whether it was started by the daily schedule or by hand through `workflow_dispatch`. Runs SHALL go one at a time. The site SHALL carry manifest.txt, listing the signing key's fingerprint, a hash of the hub's files and every package path; a run whose manifest matches the live one SHALL publish nothing to the site, and a run whose formula matches the tap's SHALL push nothing.
+A run SHALL make every channel of every catalogued CLI match its highest stable releases, whether it was started by the daily schedule or by hand through `workflow_dispatch`. Runs SHALL go one at a time. The site SHALL carry manifest.txt, listing the signing key's fingerprint, a hash of the hub's files, a hash of the built install page and every package path; a run whose manifest matches the live one SHALL publish nothing to the site, and a run whose formula matches the tap's SHALL push nothing.
 
 #### Scenario: A release nobody announced
 - GIVEN ortie 3.0.0 released and no run started since
@@ -42,7 +42,7 @@ The site and the tap SHALL each be published only after their own install tests 
 Capability `linux-repository`:
 
 ### Requirement: The site
-pkg.pimalaya.org SHALL be served by GitHub Pages from this repository's workflow, over HTTPS only, and SHALL carry an install page, the public key as pimalaya.asc, the DNF repository file pimalaya.repo, manifest.txt, the APT repository under apt/ and the DNF repository under rpm/.
+pkg.pimalaya.org SHALL be served by GitHub Pages from this repository's workflow, over HTTPS only, and SHALL carry an install page, the public key as pimalaya.asc, the DNF repository file pimalaya.repo, manifest.txt, the APT repository under apt/ and the DNF repository under rpm/. The install page SHALL be the `pkg` site of pimalaya/websites, built from its master branch on every run (`npm run build:pkg`) so it shares the theme and chrome of pimalaya.org and blog.pimalaya.org; the run SHALL copy the built files to the site and fill the page's placeholders wherever they stand: `@CLIS@` (one `li` per CLI, with `a.pkg-tool__name` linking its repository, `span.pkg-tool__version` and `span.pkg-tool__description`), `@APT@` and `@DNF@` (site/apt.sh and site/dnf.sh, HTML-escaped), `@BREW@` (one `brew install` line per Homebrew CLI) and `@FINGERPRINT@` (the signing key, in groups of four). An unknown placeholder SHALL stop the run. A change to the built page SHALL reach the site on the next run through the manifest's page hash.
 
 ### Requirement: Signed with one key
 Every APT index, every RPM package and every DNF index SHALL be signed with the key of pimalaya.asc, `CE05 CD30 AD91 9CC1 7D62  A78C DF3D EA0C 9370 3421`, which the site serves as pimalaya.asc and the install page names by fingerprint; a run SHALL refuse any other key. The APT suite SHALL carry InRelease and Release.gpg, the DNF repository repodata/repomd.xml.asc, and pimalaya.repo SHALL set `gpgcheck=1` and `repo_gpgcheck=1`.
