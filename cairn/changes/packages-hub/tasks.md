@@ -18,5 +18,6 @@ change: packages-hub
 - [x] First real run with comodoro alone (maintainer's go, 2026-11-12, run 43223541966): comodoro 2.0.0 on APT, DNF and the tap; signatures checked against pimalaya.asc, installed from the live site with the install page's commands in debian:stable and fedora:latest
 - [ ] Maintainer check: the install page commands on a real Debian or Ubuntu machine and a real Fedora one, and `brew install pimalaya/tap/comodoro` on macOS
 - [x] Ortie back in its channels (maintainer's go, 2026-11-12, run 43248870400): ortie 2.3.0, 2.2.0 and 2.1.0 on APT and DNF, Formula/ortie.rb at 2.3.0 (tap 1461bee), comodoro's packages reused from the live site; the macOS arm64 test was cancelled for lack of a runner and passed on "Re-run failed jobs"
+- [x] Ortie 3.0.0 (maintainer's go, 2026-11-21, dispatched run 44905046004): 3.0.0, 2.3.0 and 2.2.0 on APT and DNF (2.1.0 rotated out), Formula/ortie.rb at 3.0.0 (tap d22d71e); the v3 archive adds share/schemas and share/doc/ortie, both mapped
 - [ ] Himalaya back in its channels once its 3.0.0 release is out
 - [ ] Land: fold the delta into spec/hub.md, spec/linux-repository.md and spec/homebrew-tap.md, write the log entry
