@@ -25,3 +25,23 @@ channels = ["apt", "dnf", "homebrew"]
 repository = "pimalaya/himalaya"
 description = "CLI to manage emails"
 channels = []
+
+[cli.neverest]
+repository = "pimalaya/neverest"
+description = "CLI to synchronize mails, contacts and calendars"
+channels = ["apt", "dnf", "homebrew"]
+
+[cli.cardamum]
+repository = "pimalaya/cardamum"
+description = "CLI to manage contacts"
+channels = ["apt", "dnf", "homebrew"]
+
+[cli.calendula]
+repository = "pimalaya/calendula"
+description = "CLI to manage calendars"
+channels = ["apt", "dnf", "homebrew"]
+
+[cli.carillon]
+repository = "pimalaya/carillon"
+description = "CLI to watch PIM collection changes"
+channels = ["apt", "dnf", "homebrew"]
