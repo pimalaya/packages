@@ -20,11 +20,10 @@ repository = "pimalaya/ortie"
 description = "CLI to manage OAuth tokens"
 channels = ["apt", "dnf", "homebrew"]
 
-# Back to apt and dnf at 3.0.0.
 [cli.himalaya]
 repository = "pimalaya/himalaya"
 description = "CLI to manage emails"
-channels = []
+channels = ["apt", "dnf"]
 
 [cli.neverest]
 repository = "pimalaya/neverest"
