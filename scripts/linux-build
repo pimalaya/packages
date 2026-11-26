@@ -71,6 +71,7 @@ contents() {
       share/completions/_"$cli".ps1 | share/completions/"$cli".powershell) continue ;;
       share/applications/*.desktop) to=/usr/share/applications/${f##*/} ;;
       share/schemas/*.json) to=/usr/share/$cli/schemas/${f##*/} ;;
+      share/services/*.service) to=/usr/lib/systemd/user/${f##*/} ;;
       share/doc/"$cli"/*) to=/usr/share/doc/$cli/${f#share/doc/"$cli"/} ;;
       *) die "$cli: unknown archive entry $f" ;;
     esac
@@ -231,6 +232,10 @@ while read -r kind cli repo tag system arch machine path <&3; do
     curl -fsSL --retry 3 \
       "https://github.com/$repo/releases/download/$tag/$cli.$system.tgz" |
       tar -xz -C "$src"
+    # A unit names the binary's directory as %install_dir%.
+    for f in "$src"/share/services/*.service; do
+      if [[ -e $f ]]; then sed -i 's|%install_dir%|/usr/bin|g' "$f"; fi
+    done
     got=$(od -An -tu2 -j18 -N2 "$src/$cli" | tr -d ' ')
     if [[ $got != "$machine" ]]; then
       die "$cli $tag $system: ELF machine $got, expected $machine"
